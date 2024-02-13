@@ -61,7 +61,16 @@ class StockServiceTest {
         latch.await();
 
         Stock stock = stockRepository.findById(1L).orElseThrow();
-        Assertions.assertThat(stock.getQuantity()).isEqualTo(0); // 테스트 fail 발생 (둘 이상의 스레드가 공유자원에 엑세스하는 Race Condition 때문이다. ex - 스레드1이 select를 하고 update 하기 전 스레드2가 select를 하는 상황 발생)
+        /**
+        테스트 fail 발생 (둘 이상의 스레드가 공유자원에 엑세스하는 Race Condition 때문이다. ex - 스레드1이 select를 하고 update 하기 전 스레드2가 select를 하는 상황 발생)
+
+         해결 방법 1: synchronized 적용 (but 이 방법도 테스트 fail 발생 => @Transactional은 StockService 클래스를 새로 만들어 실행 하기 때문이다 따라서
+                   여러개의 스레드가 동시에 동작하게 된다. @Transactional 어노테이션을 제거하면 테스트는 통과된다. synchronized는 각각 하나의 프로세스(서버)에만 보장되지만 스레드에는 적용되지 않는다.
+                   즉 이는 여러 스레드가 동시에 하나의 데이터에 접근이 가능하다는 것을 의미한다.)
+
+         해결 방법2:
+        **/
+         Assertions.assertThat(stock.getQuantity()).isEqualTo(0);
     }
 
 }
