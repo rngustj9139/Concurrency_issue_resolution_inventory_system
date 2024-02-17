@@ -1,6 +1,7 @@
 package koo.stock.service;
 
 import koo.stock.domain.Stock;
+import koo.stock.facade.OptimisticLockStockFacade;
 import koo.stock.repository.StockRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +24,9 @@ class StockServiceTest {
 
     @Autowired
     private PessimisticLockStockService pessimisticLockStockService;
+
+    @Autowired
+    private OptimisticLockStockFacade optimisticLockStockFacade;
 
     @Autowired
     private StockRepository stockRepository;
@@ -95,6 +99,33 @@ class StockServiceTest {
             executorService.submit(() -> {
                 try {
                     pessimisticLockStockService.decrease(1L, 1L);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        Stock stock = stockRepository.findById(1L).orElseThrow();
+
+        Assertions.assertThat(stock.getQuantity()).isEqualTo(0);
+    }
+
+    @Test
+    public void 동시에_100개의_요청_V3() throws InterruptedException {
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(32); // 비동기 처리를 위해 java의 API 이용
+        // CountDownLatch 는 테스트코드에서 모든 실행이 완료될때까지 사용할 용도로 사용한 것으로 레이스 컨디션과는 무관
+        // 100개의 요청이 끝날 때 까지 기다려야하므로 CountDownLatch 이용 (다른 스레드에서 수행중인 테스트가 완료될 때 까지 대기)
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    optimisticLockStockFacade.decrease(1L, 1L);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 } finally {
                     latch.countDown();
                 }

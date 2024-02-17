@@ -1,9 +1,6 @@
 package koo.stock.domain;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 @Entity
 public class Stock {
@@ -15,6 +12,9 @@ public class Stock {
     private Long productId;
 
     private Long quantity;
+
+    @Version
+    private Long version; // Optimistic Lock을 위한 version 필드
 
     public Stock() {
 
