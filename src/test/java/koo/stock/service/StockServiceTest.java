@@ -87,6 +87,13 @@ class StockServiceTest {
                     3.Named Lock: 이름을 가진 Metadata Locking 이다. 이름을 가진 lock을 획득한 후 해제할때까지 다른 세션인 이 lock을 획득할 수 없도록 한다. 주의할점으로는 Transaction이 종료될 때 lock이 자동으로 해제되지 않기 때문에 별도의 명령어로 해제를 수행해야한다. Pessimistic Lock은 로우나 테이블 단위로 Lock을 걸지만 해당 기법은 메타데이터에 Lock을 건다
 
          해결 방법 3: Redis 이용
+            docker pull redis
+            docker run --name myredis -d -p 6379:6379 redis
+            이후 의존성 추가 필요(implementation 'org.springframework.boot:spring-boot-starter-data-redis')
+            docker exec -it (docker ps를 통한 redis의 컨테이너 id) redis-cli
+
+                    1.Lettuce: Spin Lock 방식(특정 스레드가 공유자원에 작업을 위해 락을 건 상태이면 다른 스레드는 일정시간이 지나면 다시 락이 풀려있는지 확인한다.), setnx 명령어 사용
+                    2.Redisson: Pub-Sub 방식 (스레드1의 작업이 끝날 경우 작업이 끝나서 락을 해제했다는 것을 공유자원에 접근하려는 다른 스레드에게 알려준다.)
          **/
          Assertions.assertThat(stock.getQuantity()).isEqualTo(0);
     }
