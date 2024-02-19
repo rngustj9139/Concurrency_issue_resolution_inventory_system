@@ -4,6 +4,7 @@ import koo.stock.domain.Stock;
 import koo.stock.facade.LettuceLockStockFacade;
 import koo.stock.facade.NamedLockStockFacade;
 import koo.stock.facade.OptimisticLockStockFacade;
+import koo.stock.facade.RedissonLockStockFacade;
 import koo.stock.repository.StockRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +36,9 @@ class StockServiceTest {
 
     @Autowired
     private LettuceLockStockFacade lettuceLockStockFacade;
+
+    @Autowired
+    private RedissonLockStockFacade redissonLockStockFacade;
 
     @Autowired
     private StockRepository stockRepository;
@@ -99,10 +103,14 @@ class StockServiceTest {
             setnx 1 lock # key == 1, value == lock (키가 같은 데이터가 중복해서 존재할 수 없음)
             del 1
 
-            Redisson 의존성 추가 (implementation 'org.redisson:redisson-spring-boot-starter:3.32.2')
+            Redisson 의존성 추가 (implementation 'org.redisson:redisson-spring-boot-starter:3.25.2')
+            pub-sub 시스템이므로 터미널 2개 필요, 각각의 터미널에 아래 명령어 입력
+            docker exec -it (docker ps를 통한 redis의 컨테이너 id) redis-cli
+            1번 터미널에서는 subscribe ch1 입력(channel 1을 구독)
+            2번 터미널에서는 publish ch1 hello 입력(hello라는 메세지 송신)
 
-                    1.Lettuce: Spin Lock 방식(특정 스레드가 공유자원에 작업을 위해 락을 건 상태이면 다른 스레드는 일정시간이 지나면 다시 락이 풀려있는지 확인한다.), setnx 명령어 사용
-                    2.Redisson: Pub-Sub 방식 (스레드1의 작업이 끝날 경우 작업이 끝나서 락을 해제했다는 것을 공유자원에 접근하려는 다른 스레드에게 알려준다.)
+            1.Lettuce: Spin Lock 방식(특정 스레드가 공유자원에 작업을 위해 락을 건 상태이면 다른 스레드는 일정시간이 지나면 다시 락이 풀려있는지 확인한다.), setnx 명령어 사용
+            2.Redisson: Pub-Sub 방식 (스레드1의 작업이 끝날 경우 작업이 끝나서 락을 해제했다는 것을 공유자원에 접근하려는 다른 스레드에게 메세지를 통해 알려준다.)
          **/
          Assertions.assertThat(stock.getQuantity()).isEqualTo(0);
     }
@@ -210,5 +218,33 @@ class StockServiceTest {
 
         Assertions.assertThat(stock.getQuantity()).isEqualTo(0);
     }
+
+    @Test
+    public void 동시에_100개의_요청_V6() throws InterruptedException {
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(32); // 비동기 처리를 위해 java의 API 이용
+        // CountDownLatch 는 테스트코드에서 모든 실행이 완료될때까지 사용할 용도로 사용한 것으로 레이스 컨디션과는 무관
+        // 100개의 요청이 끝날 때 까지 기다려야하므로 CountDownLatch 이용 (다른 스레드에서 수행중인 테스트가 완료될 때 까지 대기)
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    redissonLockStockFacade.decrease(1L, 1L);
+                } catch (RuntimeException e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        Stock stock = stockRepository.findById(1L).orElseThrow();
+
+        Assertions.assertThat(stock.getQuantity()).isEqualTo(0);
+    }
+
 
 }
