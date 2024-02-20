@@ -92,7 +92,7 @@ class StockServiceTest {
          해결 방법 2: Database의 Lock 활용
                     1.Pessimistic Lock(Exclusive Lock): 공유자원에 Lock을 걸어 다른 스레드가 공유자원에 접근하지 못하게 함 but 데드락이 발생 가능하다.
                     2.Optimistic Lock: 실제로 Lock 이용하지 않고 버전을 이용해 정합성을 맞추는 방법 (먼저 데이터를 select해서 불러들인다음에 update를 수행할 때 현재 읽은 버전이 맞는지 확인하여 업데이트한다. 만약 읽은 버전에서 수정사항이 생겼을 경우 다시 select 작업을 수행 한뒤 update한다.)
-                    3.Named Lock: 이름을 가진 Metadata Locking 이다. 이름을 가진 lock을 획득한 후 해제할때까지 다른 세션인 이 lock을 획득할 수 없도록 한다. 주의할점으로는 Transaction이 종료될 때 lock이 자동으로 해제되지 않기 때문에 별도의 명령어로 해제를 수행해야한다. Pessimistic Lock은 로우나 테이블 단위로 Lock을 걸지만 해당 기법은 메타데이터에 Lock을 건다
+                    3.Named Lock: 이름을 가진 Metadata Locking 이다. 이름을 가진 lock을 획득한 후 해제할때까지 다른 세션이 lock을 획득할 수 없도록 한다. 주의할점으로는 Transaction이 종료될 때 lock이 자동으로 해제되지 않기 때문에 별도의 명령어로 해제를 수행해야한다. Pessimistic Lock은 로우나 테이블 단위로 Lock을 걸지만 해당 기법은 메타데이터에 Lock을 건다
 
          해결 방법 3: Redis 이용
             docker pull redis
